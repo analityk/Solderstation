@@ -15,7 +15,7 @@
 #define SET_T0	{ DDRC |= (1<<T0); PORTC |= (1<<T0); }
 #define CLR_T0	{ DDRC |= (1<<T0); PORTC &=~(1<<T0); }
 
-PID pid(0.25, 20.0, 15.0, 50.0, 700.0);
+PID pid(0.48, 500.0, 122.1, 10.0, 700.0);
 
 int32_t mmap(float x, float a, float b, float c, float d){
 	float da = (float)(b) - (float)(a);
@@ -49,6 +49,37 @@ void cstr(char* t){
 	};
 };
 
+void strcpy(char* dst, char* scr){
+	uint8_t first_null = 0;
+	uint8_t sec_null = 0;
+	
+	for(uint8_t i=0; i<253; i++){
+		if( dst[i] == '\n' ){
+			first_null = i;
+			break;
+		};
+		if(i >= 254)return;
+	};
+	
+	for(uint8_t i=0; i<253; i++){
+		if( scr[i] == '\n' ){
+			sec_null = i;
+			break;
+		};
+		if(i >= 254)return;
+	};
+	
+	dst[first_null] = ' ';
+	
+	uint8_t n = 0;
+	for(uint8_t i = first_null+1; i<255; i++){
+		dst[i] = scr[n];
+		if( scr[n] == '\n' ){
+			break;
+		};
+		n++;
+	};
+};
 
 int main(void)
 {
@@ -61,16 +92,23 @@ int main(void)
 
 	char str1[20];
 	char str2[20];
+	char str3[20];
 
 	ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
 
 	uint16_t t_adc[4];
 	uint16_t tavg = 0;
 	uint8_t tcnt = 0;
+	
+	uint32_t longTermTemp[64];
+	uint32_t avg_LTT = 0;
+	uint8_t LTT_cnt = 0;
 
-	uint16_t work_point = 700;
+	uint16_t work_point = 580;
 
-	pid.SetSetpoint(700.0);
+	pid.SetSetpoint(work_point);
+	
+	uint8_t pid_en = 0;
 
 	while (1)
 	{
@@ -86,11 +124,32 @@ int main(void)
 			tavg /= 4;
 		};
 		
-		pid.Feed((float)(tavg));
-		pid.Compute();
-		float r = pid.Output();
+		longTermTemp[LTT_cnt] = tavg;
+		LTT_cnt++;
+		if(LTT_cnt > 64){
+			LTT_cnt = 0;
+		};
 		
-		int32_t time = mmap(r, -10000, 10000, -20000, 20000);
+		for(uint8_t i=0; i<64; i++){
+			avg_LTT += longTermTemp[i];
+		};
+		
+		avg_LTT /= 64;
+		
+		itoa(avg_LTT, str3, 10);
+		cstr(str3);
+		
+		float r = 0;
+		
+		if( pid_en == 1 ){
+			pid.Feed((float)(tavg));
+			pid.Compute();
+			r = pid.Output();
+		}else{
+			r = 10000;
+		};
+		
+		int32_t time = mmap(r, -20000, 20000, -20000, 20000);
 		
 		if( time >= 20000 ){
 			time = 20000;
@@ -106,15 +165,18 @@ int main(void)
 		lcd.GoToFirstLine();
 		lcd.WriteString(str1);
 		
-		itoa((uint16_t)(tavg / 2.2), str2, 10);
+		itoa((uint16_t)(tavg), str2, 10);
 		cstr(str2);
+		
+		strcpy(str2, str3);
 		
 		lcd.GoToSecondLine();
 		lcd.WriteString(str2);
-	
+		
 		if(tavg > work_point){
 			CLR_T0;
 			delay(20000-time);
+			pid_en = 1;
 		}else{
 			SET_T0;
 			delay(20000+time);
