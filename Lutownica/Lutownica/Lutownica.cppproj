@@ -155,6 +155,18 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\delays.cpp">
+      <SubType>compile</SubType>
+      <Link>delays.cpp</Link>
+    </Compile>
+    <Compile Include="..\lcd.cpp">
+      <SubType>compile</SubType>
+      <Link>lcd.cpp</Link>
+    </Compile>
+    <Compile Include="..\pid.cpp">
+      <SubType>compile</SubType>
+      <Link>pid.cpp</Link>
+    </Compile>
     <Compile Include="main.cpp">
       <SubType>compile</SubType>
     </Compile>
