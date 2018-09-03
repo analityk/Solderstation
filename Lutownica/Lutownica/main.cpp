@@ -15,7 +15,7 @@
 #define SET_T0	{ DDRC |= (1<<T0); PORTC |= (1<<T0); }
 #define CLR_T0	{ DDRC |= (1<<T0); PORTC &=~(1<<T0); }
 
-PID pid(0.253, 400.0, 50.0, 0.0, 580.0);
+PID pid(0.253, 650.0, 20.0, 0.0, 580.0);
 
 int32_t mmap(float x, float a, float b, float c, float d){
 	float da = (float)(b) - (float)(a);
@@ -103,11 +103,11 @@ int main(void)
 	uint16_t tavg = 0;
 	uint8_t tcnt = 0;
 	
-	uint32_t longTermTemp[64];
+	uint32_t longTermTemp[16];
 	uint32_t avg_LTT = 0;
 	uint8_t LTT_cnt = 0;
 
-	uint16_t work_point = 580;
+	uint16_t work_point = 650;
 
 	pid.SetSetpoint(work_point);
 	
@@ -136,18 +136,6 @@ int main(void)
 			tavg = t_adc[0] + t_adc[1] + t_adc[2] + t_adc[3];
 			tavg /= 4;
 		};
-		
-		longTermTemp[LTT_cnt] = tavg;
-		LTT_cnt++;
-		if(LTT_cnt > 64){
-			LTT_cnt = 0;
-		};
-		
-		for(uint8_t i=0; i<64; i++){
-			avg_LTT += longTermTemp[i];
-		};
-		
-		avg_LTT /= 64;
 		
 		itoa(avg_LTT, str3, 10);
 		cstr(str3);
@@ -180,8 +168,6 @@ int main(void)
 		
 		itoa((uint16_t)(tavg), str2, 10);
 		cstr(str2);
-		
-		strcpy(str2, str3);
 		
 		lcd.GoToSecondLine();
 		lcd.WriteString(str2);

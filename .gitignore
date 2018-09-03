@@ -33,3 +33,8 @@
 
 *.atsuo
 *.atsln
+*.lss
+*.elf
+*.map
+*.srec
+*.hex
