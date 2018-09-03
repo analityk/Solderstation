@@ -15,7 +15,8 @@
 #define SET_T0	{ DDRC |= (1<<T0); PORTC |= (1<<T0); }
 #define CLR_T0	{ DDRC |= (1<<T0); PORTC &=~(1<<T0); }
 
-PID pid(0.253, 650.0, 20.0, 0.0, 580.0);
+const uint16_t work_point = 650;
+PID pid(0.253, 650.0, 200.0, 0.0, work_point);
 
 int32_t mmap(float x, float a, float b, float c, float d){
 	float da = (float)(b) - (float)(a);
@@ -107,8 +108,6 @@ int main(void)
 	uint32_t avg_LTT = 0;
 	uint8_t LTT_cnt = 0;
 
-	uint16_t work_point = 650;
-
 	pid.SetSetpoint(work_point);
 	
 	uint8_t pid_en = 0;
@@ -133,9 +132,10 @@ int main(void)
 		tcnt++;
 		if(tcnt>4){
 			tcnt = 0;
-			tavg = t_adc[0] + t_adc[1] + t_adc[2] + t_adc[3];
-			tavg /= 4;
 		};
+		
+		tavg = t_adc[0] + t_adc[1] + t_adc[2] + t_adc[3];
+		tavg /= 4;
 		
 		itoa(avg_LTT, str3, 10);
 		cstr(str3);
