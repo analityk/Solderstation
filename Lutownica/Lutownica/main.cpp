@@ -50,38 +50,6 @@ void cstr(char* t){
 	};
 };
 
-void strcpy(char* dst, char* scr){
-	uint8_t first_null = 0;
-	uint8_t sec_null = 0;
-	
-	for(uint8_t i=0; i<253; i++){
-		if( dst[i] == '\n' ){
-			first_null = i;
-			break;
-		};
-		if(i >= 254)return;
-	};
-	
-	for(uint8_t i=0; i<253; i++){
-		if( scr[i] == '\n' ){
-			sec_null = i;
-			break;
-		};
-		if(i >= 254)return;
-	};
-	
-	dst[first_null] = ' ';
-	
-	uint8_t n = 0;
-	for(uint8_t i = first_null+1; i<255; i++){
-		dst[i] = scr[n];
-		if( scr[n] == '\n' ){
-			break;
-		};
-		n++;
-	};
-};
-
 int main(void)
 {
 	LCD lcd;
@@ -103,27 +71,13 @@ int main(void)
 	uint16_t t_adc[4];
 	uint16_t tavg = 0;
 	uint8_t tcnt = 0;
-	
-	uint32_t longTermTemp[16];
-	uint32_t avg_LTT = 0;
-	uint8_t LTT_cnt = 0;
 
 	pid.SetSetpoint(work_point);
-	
-	uint8_t pid_en = 0;
-
-	uint16_t cnt_time = 0;
-
-	TCNT1 = 0;
 	
 	int32_t drv_time = 70000;
 	
 	while (1)
 	{
-		cnt_time = TCNT1;
-		
-		TCNT1 = 0;
-		
 		CLR_T0;
 		
 		while(adc_read(1) > 700){};
@@ -137,18 +91,11 @@ int main(void)
 		tavg = t_adc[0] + t_adc[1] + t_adc[2] + t_adc[3];
 		tavg /= 4;
 		
-		itoa(avg_LTT, str3, 10);
-		cstr(str3);
-		
 		float r = 0;
 		
-		if( pid_en == 1 ){
-			pid.Feed((float)(tavg));
-			pid.Compute();
-			r = pid.Output();
-		}else{
-			r = 0;
-		};
+		pid.Feed((float)(tavg));
+		pid.Compute();
+		r = pid.Output();
 		
 		int32_t time = mmap(r, -20000, 20000, -drv_time, drv_time);
 		
@@ -174,7 +121,6 @@ int main(void)
 		
 		CLR_T0;
 		delay(drv_time-time);
-		pid_en = 1;
 		SET_T0;
 		delay(drv_time+time);
 	};
