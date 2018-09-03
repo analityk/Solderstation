@@ -15,7 +15,7 @@
 #define SET_T0	{ DDRC |= (1<<T0); PORTC |= (1<<T0); }
 #define CLR_T0	{ DDRC |= (1<<T0); PORTC &=~(1<<T0); }
 
-PID pid(0.48, 500.0, 122.1, 10.0, 700.0);
+PID pid(0.253, 400.0, 50.0, 0.0, 580.0);
 
 int32_t mmap(float x, float a, float b, float c, float d){
 	float da = (float)(b) - (float)(a);
@@ -95,7 +95,10 @@ int main(void)
 	char str3[20];
 
 	ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
-
+	
+	TCCR1B = (1<<CS12)|(1<<CS10);
+	TCNT1 = 0;
+	
 	uint16_t t_adc[4];
 	uint16_t tavg = 0;
 	uint8_t tcnt = 0;
@@ -110,8 +113,18 @@ int main(void)
 	
 	uint8_t pid_en = 0;
 
+	uint16_t cnt_time = 0;
+
+	TCNT1 = 0;
+	
+	int32_t drv_time = 70000;
+	
 	while (1)
 	{
+		cnt_time = TCNT1;
+		
+		TCNT1 = 0;
+		
 		CLR_T0;
 		
 		while(adc_read(1) > 700){};
@@ -146,20 +159,20 @@ int main(void)
 			pid.Compute();
 			r = pid.Output();
 		}else{
-			r = 10000;
+			r = 0;
 		};
 		
-		int32_t time = mmap(r, -20000, 20000, -20000, 20000);
+		int32_t time = mmap(r, -20000, 20000, -drv_time, drv_time);
 		
-		if( time >= 20000 ){
-			time = 20000;
+		if( time >= drv_time ){
+			time = drv_time;
 		};
 		
-		if( time <= -20000 ){
-			time = -20000;
+		if( time <= -drv_time ){
+			time = -drv_time;
 		};
 		
-		itoa(time, str1, 10);
+		itoa(r, str1, 10);
 		cstr(str1);
 		
 		lcd.GoToFirstLine();
@@ -173,13 +186,10 @@ int main(void)
 		lcd.GoToSecondLine();
 		lcd.WriteString(str2);
 		
-		if(tavg > work_point){
-			CLR_T0;
-			delay(20000-time);
-			pid_en = 1;
-		}else{
-			SET_T0;
-			delay(20000+time);
-		};
+		CLR_T0;
+		delay(drv_time-time);
+		pid_en = 1;
+		SET_T0;
+		delay(drv_time+time);
 	};
 };
