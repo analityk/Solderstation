@@ -16,11 +16,12 @@
 #define CLR_T0	{ DDRC |= (1<<T0); PORTC &=~(1<<T0); }
 
 const uint16_t work_point = 650;
-PID pid(0.253, 650.0, 200.0, 0.0, work_point);
+PID pid(0.253, 800.0, 200.0, 0.0, work_point);
 
 int32_t mmap(float x, float a, float b, float c, float d){
 	float da = (float)(b) - (float)(a);
 	float dc = (float)(d) - (float)(c);
+	if( dc == 0 || da == 0 )return 0.0;
 	float dd = dc / da;
 	float units = (float)(x - a);
 	float result = (units * dd) + (float)c;
@@ -72,9 +73,41 @@ int main(void)
 	uint16_t tavg = 0;
 	uint8_t tcnt = 0;
 
-	pid.SetSetpoint(work_point);
-	
 	int32_t drv_time = 70000;
+	
+	
+	uint8_t volatile preheat = 1;
+	
+	while(preheat){
+		CLR_T0;
+		
+		while(adc_read(1) > 700){};
+		
+		
+		t_adc[0] = adc_read(1);
+		t_adc[1] = adc_read(1);
+		t_adc[2] = adc_read(1);
+		t_adc[3] = adc_read(1);
+		
+		tavg = t_adc[0] + t_adc[1] + t_adc[2] + t_adc[3];
+		tavg /= 4;
+		
+		itoa(tavg, str1, 10);
+		cstr(str1);
+		
+		lcd.GoToFirstLine();
+		lcd.WriteString(str1);
+		
+		if(tavg >= work_point){
+			CLR_T0;
+			preheat = 0;
+		}else{
+			SET_T0;
+			delay(10000);
+		};
+	};
+	
+	
 	
 	while (1)
 	{
