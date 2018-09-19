@@ -179,6 +179,10 @@
       <SubType>compile</SubType>
       <Link>lcd.cpp</Link>
     </Compile>
+    <Compile Include="..\onewire.cpp">
+      <SubType>compile</SubType>
+      <Link>onewire.cpp</Link>
+    </Compile>
     <Compile Include="..\pid.cpp">
       <SubType>compile</SubType>
       <Link>pid.cpp</Link>

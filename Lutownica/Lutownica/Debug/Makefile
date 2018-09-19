@@ -39,6 +39,7 @@ SUBDIRS :=
 C_SRCS +=  \
 ../../delays.cpp \
 ../../lcd.cpp \
+../../onewire.cpp \
 ../../pid.cpp \
 ../main.cpp
 
@@ -52,24 +53,28 @@ ASM_SRCS +=
 OBJS +=  \
 delays.o \
 lcd.o \
+onewire.o \
 pid.o \
 main.o
 
 OBJS_AS_ARGS +=  \
 delays.o \
 lcd.o \
+onewire.o \
 pid.o \
 main.o
 
 C_DEPS +=  \
 delays.d \
 lcd.d \
+onewire.d \
 pid.d \
 main.d
 
 C_DEPS_AS_ARGS +=  \
 delays.d \
 lcd.d \
+onewire.d \
 pid.d \
 main.d
 
@@ -87,6 +92,8 @@ LINKER_SCRIPT_DEP+=
 
 
 # AVR32/GNU C Compiler
+
+
 
 
 

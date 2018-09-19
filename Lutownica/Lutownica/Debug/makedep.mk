@@ -6,6 +6,8 @@
 
 ..\lcd.cpp
 
+..\onewire.cpp
+
 ..\pid.cpp
 
 main.cpp
