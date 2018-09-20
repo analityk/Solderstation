@@ -82,7 +82,7 @@ int main(void)
 	uint8_t volatile preheat = 1;
 	
 	CLR_T0;
-	uint16_t t = 0;
+	uint16_t asd = 0;
 	
 	while(1){
 		if(ds18.reset() == 1){
@@ -91,11 +91,11 @@ int main(void)
 			lcd.WriteString("reset\n");
 		};
 		
-		delay(0x1fffff);
+		delay(0x14ffff);
 		
 		if(ds18.reset()){
-			t = ds18.ReadTemp();
-			itoa(t, str1, 10);
+			asd = ds18.ReadTemp() / 16;
+			itoa(asd, str1, 10);
 			cstr(str1);
 			lcd.GoToSecondLine();
 			lcd.WriteString(str1);

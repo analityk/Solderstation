@@ -1,7 +1,5 @@
 ﻿#include <onewire.h>
 
-#define DS_PIN_SET_LOW	{ DS_DDR |= (1<<DS_PINxn); DS_PORT &=~(1<<DS_PINxn); }
-
 void ds_pin_set_low(void){
 	DS_DDR |= (1<<DS_PINxn);
 	DS_PORT &=~(1<<DS_PINxn);
@@ -18,12 +16,12 @@ void ds_pin_hi_z(void){
 };
 
 uint8_t ds_pin_state(void){
-	ds_pin_set_hi();
+	ds_pin_hi_z();
 	uint8_t t = DS_PINx;
-	if( (t & (1<<DS_PINxn)) != 0){
-		return 1;
-	}else{
+	if( (t & (1<<DS_PINxn)) == 0){
 		return 0;
+	}else{
+		return 1;
 	};
 };
 
@@ -34,7 +32,7 @@ uint8_t Dallas18B20::reset(void)
 	ds_pin_hi_z();
 	delay_10x_us(6);
 	for(uint8_t i=0; i<30; i++){
-		if( ds_pin_state() == 0 ){
+		if( ds_pin_state() == 1 ){
 			return 1;
 		};
 		DELAY_10us;
@@ -54,7 +52,7 @@ uint16_t Dallas18B20::ReadTemp(void)
 	writebyte(0xBE);
 	uint8_t msb = readbyte();
 	uint8_t lsb = readbyte();
-	return (msb<<8)|lsb;
+	return (lsb<<8)|msb;
 };
 
 uint8_t Dallas18B20::readbyte(void)
@@ -82,23 +80,28 @@ void Dallas18B20::writebyte(uint8_t byte)
 uint8_t Dallas18B20::readbit(void)
 {
 	ds_pin_set_low();
-	delay_us(5);
+	delay_us(6);
 	ds_pin_hi_z();
-	delay_us(10);
-	return ds_pin_state();
+	delay_us(9);
+	
+	uint8_t pins = ds_pin_state();
+	
+	delay_us(55);
+	
+	return pins;
 };
 
 void Dallas18B20::writebit(uint8_t bit)
 {
 	if(bit == 0){
 		ds_pin_set_low();
-		delay_10x_us(10);
+		delay_10x_us(7);
 		ds_pin_hi_z();
 	}else{
 		ds_pin_set_low();
-		delay_us(30);
+		delay_us(6);
 		ds_pin_hi_z();
-		delay_10x_us(3);
+		delay_10x_us(6);
 	};
 };
 
