@@ -6,6 +6,7 @@
  */ 
 
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include <stdlib.h>
 #include <pid.h>
 #include <lcd.h>
@@ -16,8 +17,8 @@
 #define SET_T0	{ DDRC |= (1<<T0); PORTC |= (1<<T0); }
 #define CLR_T0	{ DDRC |= (1<<T0); PORTC &=~(1<<T0); }
 
-const uint16_t work_point = 650;
-PID pid(0.253, 800.0, 200.0, 0.0, work_point);
+const uint16_t work_point = 450;
+PID pid(0.274, 150.0, 50.0, 0.0, work_point);
 
 int32_t mmap(float x, float a, float b, float c, float d){
 	float da = (float)(b) - (float)(a);
@@ -52,6 +53,59 @@ void cstr(char* t){
 	};
 };
 
+uint8_t volatile phase = 0;
+
+uint16_t volatile drive_time = 30000;
+
+uint16_t volatile t_adc[4];
+uint16_t volatile tavg = 0;
+uint8_t volatile tcnt = 0;
+float volatile r = 0;
+int32_t volatile drvtm1 = 0;
+int32_t volatile drvtm2 = 0;
+
+uint16_t real_tcnt1 = 0;
+uint8_t volatile isr = 0;
+
+ISR(TIMER1_OVF_vect){
+	isr = 1;
+	CLR_T0;
+	while(adc_read(1) > 550){};
+	
+	t_adc[0] = adc_read(1);
+	t_adc[1] = adc_read(1);
+	t_adc[2] = adc_read(1);
+	t_adc[3] = adc_read(1);
+	
+	tavg = t_adc[0] + t_adc[1] + t_adc[2] + t_adc[3];
+	tavg /= 4;
+	
+	pid.Feed((float)(tavg));
+	pid.Compute();
+	r = pid.Output();
+	
+	int32_t time = mmap(r, -32000, 32000, -32000, 32000);
+	
+	if( time >= 32000 ){
+		time = 32000;
+	};
+	
+	if( time <= -32000 ){
+		time = -32700;
+	};
+	
+	if( phase == 0 ){
+		TCNT1 = (uint16_t)(32760 + time);
+		CLR_T0;
+		phase = 1;
+	}else{
+		TCNT1 = (uint16_t)(32760 - time);
+		SET_T0;
+		phase = 0;
+	};
+	isr = 0;
+};
+
 int main(void)
 {
 	LCD lcd;
@@ -69,14 +123,9 @@ int main(void)
 
 	ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
 	
-	TCCR1B = (1<<CS12)|(1<<CS10);
+	TCCR1B = (1<<CS11)|(1<<CS10);
 	TCNT1 = 0;
-	
-	uint16_t t_adc[4];
-	uint16_t tavg = 0;
-	uint8_t tcnt = 0;
-
-	int32_t drv_time = 70000;
+	TIMSK1 = (1<<TOIE1);
 	
 	
 	uint8_t volatile preheat = 1;
@@ -84,102 +133,78 @@ int main(void)
 	CLR_T0;
 	uint16_t asd = 0;
 	
-	while(1){
-		if(ds18.reset() == 1){
-			ds18.CallReadTemp();
-			lcd.GoToFirstLine();
-			lcd.WriteString("reset\n");
+	//while(1){
+		//if(ds18.reset() == 1){
+			//ds18.CallReadTemp();
+			//lcd.GoToFirstLine();
+			//lcd.WriteString("reset\n");
+		//};
+		//
+		//delay(0x14ffff);
+		//
+		//if(ds18.reset()){
+			//asd = ds18.ReadTemp() / 16;
+			//itoa(asd, str1, 10);
+			//cstr(str1);
+			//lcd.GoToSecondLine();
+			//lcd.WriteString(str1);
+		//};
+		//
+	//};
+	
+	while(preheat){
+		CLR_T0;
+		
+		while(adc_read(1) > 700){};
+		
+		t_adc[0] = adc_read(1);
+		t_adc[1] = adc_read(1);
+		t_adc[2] = adc_read(1);
+		t_adc[3] = adc_read(1);
+		
+		tavg = t_adc[0] + t_adc[1] + t_adc[2] + t_adc[3];
+		tavg /= 4;
+		
+		itoa(tavg, str1, 10);
+		cstr(str1);
+		
+		lcd.GoToFirstLine();
+		lcd.WriteString(str1);
+		
+		if(tavg >= work_point){
+			CLR_T0;
+			preheat = 0;
+		}else{
+			SET_T0;
+			delay(20000);
 		};
-		
-		delay(0x14ffff);
-		
-		if(ds18.reset()){
-			asd = ds18.ReadTemp() / 16;
-			itoa(asd, str1, 10);
-			cstr(str1);
-			lcd.GoToSecondLine();
-			lcd.WriteString(str1);
-		};
-		
 	};
 	
-	//while(preheat){
-		//CLR_T0;
-		//
-		//while(adc_read(1) > 700){};
-		//
-		//
-		//t_adc[0] = adc_read(1);
-		//t_adc[1] = adc_read(1);
-		//t_adc[2] = adc_read(1);
-		//t_adc[3] = adc_read(1);
-		//
-		//tavg = t_adc[0] + t_adc[1] + t_adc[2] + t_adc[3];
-		//tavg /= 4;
-		//
-		//itoa(tavg, str1, 10);
-		//cstr(str1);
-		//
-		//lcd.GoToFirstLine();
-		//lcd.WriteString(str1);
-		//
-		//if(tavg >= work_point){
-			//CLR_T0;
-			//preheat = 0;
-		//}else{
-			//SET_T0;
-			//delay(10000);
-		//};
-	//};
+	CLR_T0;
+	
+	sei();
 	
 	
-	
-	//while (1)
-	//{
-		//CLR_T0;
-		//
-		//while(adc_read(1) > 700){};
-		//
-		//t_adc[tcnt] = adc_read(1);
-		//tcnt++;
-		//if(tcnt>4){
-			//tcnt = 0;
-		//};
-		//
-		//tavg = t_adc[0] + t_adc[1] + t_adc[2] + t_adc[3];
-		//tavg /= 4;
-		//
-		//float r = 0;
-		//
-		//pid.Feed((float)(tavg));
-		//pid.Compute();
-		//r = pid.Output();
-		//
-		//int32_t time = mmap(r, -20000, 20000, -drv_time, drv_time);
-		//
-		//if( time >= drv_time ){
-			//time = drv_time;
-		//};
-		//
-		//if( time <= -drv_time ){
-			//time = -drv_time;
-		//};
-		//
-		//itoa(r, str1, 10);
-		//cstr(str1);
-		//
-		//lcd.GoToFirstLine();
-		//lcd.WriteString(str1);
-		//
-		//itoa((uint16_t)(tavg), str2, 10);
-		//cstr(str2);
-		//
-		//lcd.GoToSecondLine();
-		//lcd.WriteString(str2);
-		//
-		//CLR_T0;
-		//delay(drv_time-time);
-		//SET_T0;
-		//delay(drv_time+time);
-	//};
+	while (1)
+	{
+		if(isr == 0){
+			itoa((uint16_t)(r), str1, 10);
+		
+		
+			cstr(str1);
+		
+			lcd.GoToFirstLine();
+			lcd.WriteString(str1);
+		
+		
+			itoa((uint16_t)(tavg), str2, 10);
+		
+		
+			cstr(str2);
+		
+			lcd.GoToSecondLine();
+			lcd.WriteString(str2);
+		};
+		delay(0xFFFF);
+	};
 };
