@@ -17,17 +17,17 @@
 #define SET_T0	{ DDRC |= (1<<T0); PORTC |= (1<<T0); }
 #define CLR_T0	{ DDRC |= (1<<T0); PORTC &=~(1<<T0); }
 
-const uint16_t work_point = 450;
-PID pid(0.274, 150.0, 50.0, 0.0, work_point);
+const uint16_t work_point = 650;
+PID pid(0.274, 350.0, 550.0, 100.0, work_point);
 
-int32_t mmap(float x, float a, float b, float c, float d){
+uint16_t mmap(float x, float a, float b, float c, float d){
 	float da = (float)(b) - (float)(a);
 	float dc = (float)(d) - (float)(c);
-	if( dc == 0 || da == 0 )return 0.0;
+	if( dc == 0.0 || da == 0.0 )return 0.0;
 	float dd = dc / da;
 	float units = (float)(x - a);
 	float result = (units * dd) + (float)c;
-	return (int32_t)(result);
+	return (uint16_t)(result);
 };
 
 void delay(uint32_t volatile t){
@@ -66,40 +66,54 @@ int32_t volatile drvtm2 = 0;
 
 uint16_t real_tcnt1 = 0;
 uint8_t volatile isr = 0;
+uint16_t volatile time = 0;
 
 ISR(TIMER1_OVF_vect){
 	isr = 1;
-	CLR_T0;
-	while(adc_read(1) > 550){};
-	
-	t_adc[0] = adc_read(1);
-	t_adc[1] = adc_read(1);
-	t_adc[2] = adc_read(1);
-	t_adc[3] = adc_read(1);
-	
-	tavg = t_adc[0] + t_adc[1] + t_adc[2] + t_adc[3];
-	tavg /= 4;
-	
-	pid.Feed((float)(tavg));
-	pid.Compute();
-	r = pid.Output();
-	
-	int32_t time = mmap(r, -32000, 32000, -32000, 32000);
-	
-	if( time >= 32000 ){
-		time = 32000;
-	};
-	
-	if( time <= -32000 ){
-		time = -32700;
-	};
-	
 	if( phase == 0 ){
-		TCNT1 = (uint16_t)(32760 + time);
+		CLR_T0;
+		while(adc_read(1) > 700){};
+	
+		delay(0Xff);
+	
+		t_adc[0] = adc_read(1);
+		t_adc[1] = adc_read(1);
+		t_adc[2] = adc_read(1);
+		t_adc[3] = adc_read(1);
+	
+		tavg = t_adc[0] + t_adc[1] + t_adc[2] + t_adc[3];
+		tavg /= 4;
+	
+		pid.Feed((float)(tavg));
+		pid.Compute();
+		r = pid.Output();
+	
+		if( r > 64000.0){
+			r = 64000.0;
+		};
+	
+		if( r < -64000.0){
+			r = -64000.0;
+		};
+	
+		time = mmap(r, -64000, 64000, 0, 64000);
+	
+		real_tcnt1 = time;
+	
+		if( time >= 64000 ){
+			time = 64000;
+		};
+	
+		if( time <= 10 ){
+			time = 10;
+		};
+	
+	
+		TCNT1 = (uint16_t)(time);
 		CLR_T0;
 		phase = 1;
 	}else{
-		TCNT1 = (uint16_t)(32760 - time);
+		TCNT1 = (uint16_t)(64000 - time);
 		SET_T0;
 		phase = 0;
 	};
@@ -171,7 +185,7 @@ int main(void)
 		lcd.GoToFirstLine();
 		lcd.WriteString(str1);
 		
-		if(tavg >= work_point){
+		if(tavg >= (work_point-200)){
 			CLR_T0;
 			preheat = 0;
 		}else{
@@ -188,7 +202,7 @@ int main(void)
 	while (1)
 	{
 		if(isr == 0){
-			itoa((uint16_t)(r), str1, 10);
+			itoa((int32_t)(real_tcnt1), str1, 10);
 		
 		
 			cstr(str1);
