@@ -18,7 +18,7 @@
 #define CLR_T0	{ DDRC |= (1<<T0); PORTC &=~(1<<T0); }
 
 const uint16_t work_point = 650;
-PID pid(0.274, 350.0, 550.0, 100.0, work_point);
+PID pid(0.274, 400.0, 750.0, 75.0, work_point);
 
 uint16_t mmap(float x, float a, float b, float c, float d){
 	float da = (float)(b) - (float)(a);
@@ -120,6 +120,38 @@ ISR(TIMER1_OVF_vect){
 	isr = 0;
 };
 
+void strcpy(char* dst, char* scr){
+	uint8_t first_null = 0;
+	uint8_t sec_null = 0;
+	
+	for(uint8_t i=0; i<253; i++){
+		if( dst[i] == '\n' ){
+			first_null = i;
+			break;
+		};
+		if(i >= 254)return;
+	};
+	
+	for(uint8_t i=0; i<253; i++){
+		if( scr[i] == '\n' ){
+			sec_null = i;
+			break;
+		};
+		if(i >= 254)return;
+	};
+	
+	uint8_t n = 0;
+	for(uint8_t i = first_null; i<255; i++){
+		dst[i] = scr[n];
+		if( scr[n] == '\n' ){
+			break;
+		};
+		n++;
+	};
+};
+
+
+
 int main(void)
 {
 	LCD lcd;
@@ -185,7 +217,7 @@ int main(void)
 		lcd.GoToFirstLine();
 		lcd.WriteString(str1);
 		
-		if(tavg >= (work_point-200)){
+		if(tavg >= (work_point)){
 			CLR_T0;
 			preheat = 0;
 		}else{
@@ -202,21 +234,38 @@ int main(void)
 	while (1)
 	{
 		if(isr == 0){
-			itoa((int32_t)(real_tcnt1), str1, 10);
-		
+			
+			uint16_t pr = real_tcnt1 / 640;
+			uint16_t pw = real_tcnt1 / 1569;
+			uint16_t tm = tavg / 1.85;
+			
+			itoa((uint16_t)(pr), str1, 10);
+			itoa((uint16_t)(pw), str3, 10);
+			itoa((uint16_t)(tm), str2, 10);
 		
 			cstr(str1);
-		
-			lcd.GoToFirstLine();
-			lcd.WriteString(str1);
-		
-		
-			itoa((uint16_t)(tavg), str2, 10);
-		
-		
+			cstr(str3);
 			cstr(str2);
-		
-			lcd.GoToSecondLine();
+			
+			if( str1[1]=='\n'){
+				str1[2] = '\n';
+				str1[1] = str1[0];
+				str1[0] = ' ';
+			};
+			
+			if( str3[1]=='\n'){
+				str3[2] = '\n';
+				str3[1] = str3[0];
+				str3[0] = ' ';
+			};
+			
+			strcpy(str1, "% \n");
+			strcpy(str1, str3);
+			strcpy(str1, "W\n");
+			strcpy(str2, "'C \n");
+			strcpy(str2, str1);
+			
+			lcd.GoToFirstLine();
 			lcd.WriteString(str2);
 		};
 		delay(0xFFFF);
