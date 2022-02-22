@@ -5,7 +5,7 @@ void PID::Compute(void)
 	error = setpoint - measure;
 	intergal = intergal + error * kt;
 	deriv = (error - prev_error) / kt;
-	
+
 	output = (kp * error) + (ki * intergal) + (kd * deriv);
 	prev_error = error;
 };
@@ -32,3 +32,12 @@ float PID::Output(void)
 {
 	return output;
 };
+
+void PID::Reset(void)
+{
+	error = 0;
+	intergal = 0;
+	deriv = 0;
+	prev_error = 0;
+	output = 0;
+}
